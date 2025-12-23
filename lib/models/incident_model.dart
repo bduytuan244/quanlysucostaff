@@ -9,6 +9,7 @@ class IncidentModel {
   final DateTime timestamp;
   final String status;
   final String? resultImageUrl;
+  final String category;
 
   IncidentModel({
     required this.id,
@@ -21,6 +22,7 @@ class IncidentModel {
     this.staffId,
     this.status = 'Pending',
     this.resultImageUrl,
+    this.category = 'Khác'
   });
   
   Map<String, dynamic> toMap() {
@@ -33,6 +35,7 @@ class IncidentModel {
       'reporterId': reporterId,
       'timestamp': timestamp.millisecondsSinceEpoch,
       'resultImageUrl': resultImageUrl,
+      'cagetory': category,
     };
   }
   
@@ -47,6 +50,7 @@ class IncidentModel {
       staffId: map['staffId'],
       timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp'] ?? 0),
       resultImageUrl: map['resultImageUrl'],
+      category: map['cagetory'] ?? 'Khác',
     );
   }
 }

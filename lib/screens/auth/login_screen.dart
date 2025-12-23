@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../user_flow/home_user_screen.dart';
+import '../staff_flow/home_staff_screen.dart'; // Đảm bảo import đúng file này
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -14,21 +15,22 @@ class _LoginScreenState extends State<LoginScreen> {
   void _handleLogin() {
     String username = _usernameController.text.trim();
 
-    if (username.toLowerCase() == 'user') {
-      Navigator.push(
+    // Logic cho App Quản Lý (Staff)
+    if (username.toLowerCase() == 'staff') {
+      Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const HomeUserScreen()),
+        MaterialPageRoute(builder: (context) => const HomeStaffScreen()),
       );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đang vào giao diện: NGƯỜI DÂN')),
+        const SnackBar(content: Text('Xin chào Quản lý!')),
       );
-    } else if (username.toLowerCase() == 'staff') {
+    } else if (username.toLowerCase() == 'user') {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đang vào giao diện: KỸ THUẬT VIÊN')),
+        const SnackBar(content: Text('Đây là App Quản lý. Vui lòng dùng App Kỹ thuật viên!')),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tài khoản không hợp lệ! Thử "user" hoặc "staff"')),
+        const SnackBar(content: Text('Sai tài khoản! Nhập "staff" để test.')),
       );
     }
   }
@@ -43,10 +45,10 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.build_circle_outlined, size: 80, color: Colors.blue),
+              const Icon(Icons.admin_panel_settings, size: 80, color: Colors.teal),
               const SizedBox(height: 20),
               const Text(
-                'HỆ THỐNG BÁO CÁO SỰ CỐ',
+                'QUẢN LÝ BẢO TRÌ',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
@@ -56,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _usernameController,
                 decoration: const InputDecoration(
                   labelText: 'Tài khoản',
-                  hintText: 'Nhập "user" hoặc "staff" để test',
+                  hintText: 'Nhập "staff"',
                   prefixIcon: Icon(Icons.person),
                 ),
               ),
@@ -78,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: ElevatedButton(
                   onPressed: _handleLogin,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: Colors.teal,
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('ĐĂNG NHẬP', style: TextStyle(fontSize: 16)),
