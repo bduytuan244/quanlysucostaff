@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import '../../models/incident_model.dart';
 import 'manage_tech_screen.dart';
+import 'statistics_screen.dart';
 
 class HomeStaffScreen extends StatefulWidget {
   const HomeStaffScreen({super.key});
@@ -10,7 +11,6 @@ class HomeStaffScreen extends StatefulWidget {
   @override
   State<HomeStaffScreen> createState() => _HomeStaffScreenState();
 }
-
 class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -20,11 +20,21 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
     _tabController = TabController(length: 3, vsync: this);
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Resolved': return Colors.green;
-      case 'Processing': return Colors.blue;
-      default: return Colors.orange;
+  // --- HÀM MỚI: Cập nhật trạng thái đơn hàng ---
+  Future<void> _updateStatus(String docId, String newStatus) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('incidents')
+          .doc(docId)
+          .update({'status': newStatus});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Đã cập nhật: $newStatus")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Lỗi: $e")),
+      );
     }
   }
 
@@ -37,14 +47,22 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.manage_accounts),
-            tooltip: "Quản Lý nhân viên",
+            icon: const Icon(Icons.bar_chart), // Icon biểu đồ
+            tooltip: "Xem thống kê",
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageTechScreen()),
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const StatisticsScreen()) // Nhớ import file nhé
               );
             },
           ),
-
+          IconButton(
+            icon: const Icon(Icons.manage_accounts),
+            tooltip: "Quản Lý nhân viên",
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageTechScreen()));
+            },
+          ),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -109,16 +127,17 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // --- PHẦN THÔNG TIN (GIỮ NGUYÊN) ---
                     Row(
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: incident.imageUrl.isNotEmpty && !incident.imageUrl.startsWith('http')
                               ? Image.memory(
-                                  base64Decode(incident.imageUrl),
-                                  width: 70, height: 70, fit: BoxFit.cover,
-                                  errorBuilder: (_,__,___) => Container(width: 70, height: 70, color: Colors.grey, child: const Icon(Icons.error)),
-                                )
+                            base64Decode(incident.imageUrl),
+                            width: 70, height: 70, fit: BoxFit.cover,
+                            errorBuilder: (_,__,___) => Container(width: 70, height: 70, color: Colors.grey, child: const Icon(Icons.error)),
+                          )
                               : Container(width: 70, height: 70, color: Colors.grey[300], child: const Icon(Icons.image)),
                         ),
                         const SizedBox(width: 12),
@@ -129,17 +148,16 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
                               Text(
                                 incident.title,
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-
                               ),
                               const SizedBox(height: 4),
-                              Text(" ${incident.location}", style: const TextStyle(color: Colors.grey)),
+                              Text("📍 ${incident.location}", style: const TextStyle(color: Colors.grey)),
                               const SizedBox(height: 4),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: Colors.blue[50],
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: Colors.blue.shade200)
+                                    color: Colors.blue[50],
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: Colors.blue.shade200)
                                 ),
                                 child: Text(
                                   incident.category,
@@ -158,6 +176,42 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: Colors.black87),
                     ),
+
+                    // --- PHẦN NÚT BẤM (MỚI THÊM VÀO) ---
+                    const SizedBox(height: 10),
+                    if (filterStatus == 'Pending')
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            // Chuyển sang Processing
+                            _updateStatus(incident.id, 'Processing');
+                          },
+                          icon: const Icon(Icons.play_arrow),
+                          label: const Text("TIẾP NHẬN XỬ LÝ"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+
+                    if (filterStatus == 'Processing')
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            // Chuyển sang Resolved
+                            _updateStatus(incident.id, 'Resolved');
+                          },
+                          icon: const Icon(Icons.check_circle),
+                          label: const Text("HOÀN THÀNH"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
