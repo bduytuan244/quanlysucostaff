@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/user_model.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ManageTechScreen extends StatefulWidget {
   const ManageTechScreen({super.key});
@@ -56,6 +57,17 @@ class _ManageTechScreenState extends State<ManageTechScreen> {
                 elevation: 2,
                 margin:  const EdgeInsets.only(bottom: 10),
                 child: ListTile(
+                  onTap: () async {
+                    // Giả sử trong DB bạn đã lưu trường 'phone'. Nếu chưa có thì lấy số mẫu.
+                    final phoneNumber = "0909123456"; // Hoặc: user.phone
+                    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+
+                    if (await canLaunchUrl(launchUri)) {
+                      await launchUrl(launchUri);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Không thể thực hiện cuộc gọi")));
+                    }
+                  },
                   leading: CircleAvatar(
                     backgroundColor: user.isActive ? Colors.green : Colors.grey,
                     child: Icon(

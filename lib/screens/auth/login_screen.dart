@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../staff_flow/home_staff_screen.dart'; // Đảm bảo import đúng file này
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../staff_flow/home_staff_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,30 +10,71 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _usernameController = TextEditingController();
+  // Đổi tên biến cho rõ ràng
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isLoading = false;
 
-  void _handleLogin() {
-    String username = _usernameController.text.trim();
+  Future<void> _handleLogin() async {
+    String inputEmail = _emailController.text.trim();
+    String inputPassword = _passwordController.text.trim();
 
-    // Logic cho App Quản Lý (Staff)
-    if (username.toLowerCase() == 'staff') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeStaffScreen()),
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Xin chào Quản lý!')),
-      );
-    } else if (username.toLowerCase() == 'user') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đây là App Quản lý. Vui lòng dùng App Kỹ thuật viên!')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sai tài khoản! Nhập "staff" để test.')),
-      );
+    if (inputEmail.isEmpty || inputPassword.isEmpty) {
+      _showError('Vui lòng nhập đầy đủ thông tin!');
+      return;
     }
+
+    setState(() { _isLoading = true; });
+
+    try {
+      // 1. Tìm trong DB: Email này có phải là QUẢN LÝ (manager) không?
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: inputEmail)
+          .where('role', isEqualTo: 'manager') // --- QUAN TRỌNG: Chỉ Manager mới được vào ---
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        // --- TÌM THẤY TÀI KHOẢN ---
+        var userDoc = snapshot.docs.first;
+        Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
+
+        // 2. Check mật khẩu
+        String dbPassword = data['password'] ?? '123456';
+
+        if (inputPassword == dbPassword) {
+          // Đúng hết -> Vào trang chủ
+          _goToHome();
+        } else {
+          _showError('Sai mật khẩu!');
+        }
+      } else {
+        // --- KHÔNG TÌM THẤY ---
+        // Có thể là sai Email, hoặc Email đó là của 'technician' chứ không phải 'manager'
+        _showError('Tài khoản này không có quyền Quản lý!');
+      }
+    } catch (e) {
+      _showError('Lỗi kết nối: $e');
+    } finally {
+      if (mounted) setState(() { _isLoading = false; });
+    }
+  }
+
+  void _goToHome() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const HomeStaffScreen()),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Xin chào Quản lý!')),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   @override
@@ -42,51 +84,57 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.admin_panel_settings, size: 80, color: Colors.teal),
-              const SizedBox(height: 20),
-              const Text(
-                'QUẢN LÝ BẢO TRÌ',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 40),
-
-              TextField(
-                controller: _usernameController,
-                decoration: const InputDecoration(
-                  labelText: 'Tài khoản',
-                  hintText: 'Nhập "staff"',
-                  prefixIcon: Icon(Icons.person),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.admin_panel_settings, size: 80, color: Colors.teal),
+                const SizedBox(height: 20),
+                const Text(
+                  'QUẢN TRỊ VIÊN',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 40),
 
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Mật khẩu',
-                  prefixIcon: Icon(Icons.lock),
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _handleLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    foregroundColor: Colors.white,
+                TextField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email Quản lý',
+                    hintText: 'admin@gmail.com',
+                    prefixIcon: Icon(Icons.email),
+                    border: OutlineInputBorder(),
                   ),
-                  child: const Text('ĐĂNG NHẬP', style: TextStyle(fontSize: 16)),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+
+                TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Mật khẩu',
+                    prefixIcon: Icon(Icons.lock),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 30),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleLogin,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('ĐĂNG NHẬP', style: TextStyle(fontSize: 16)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
