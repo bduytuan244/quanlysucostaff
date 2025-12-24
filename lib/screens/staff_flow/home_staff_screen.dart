@@ -11,16 +11,26 @@ class HomeStaffScreen extends StatefulWidget {
   @override
   State<HomeStaffScreen> createState() => _HomeStaffScreenState();
 }
+
 class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchText = "";
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    // Lắng nghe thay đổi khi gõ phím để cập nhật biến _searchText
+    _searchController.addListener(() {
+      setState(() {
+        _searchText = _searchController.text.toLowerCase();
+      });
+    });
   }
 
-  // --- HÀM MỚI: Cập nhật trạng thái đơn hàng ---
+  // Hàm cập nhật trạng thái đơn hàng
   Future<void> _updateStatus(String docId, String newStatus) async {
     try {
       await FirebaseFirestore.instance
@@ -42,17 +52,17 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Bàn Quản Lý"),
+        title: const Text("Ban Quản Lý"),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.bar_chart), // Icon biểu đồ
+            icon: const Icon(Icons.bar_chart),
             tooltip: "Xem thống kê",
             onPressed: () {
               Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const StatisticsScreen()) // Nhớ import file nhé
+                  MaterialPageRoute(builder: (context) => const StatisticsScreen())
               );
             },
           ),
@@ -64,16 +74,44 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
             },
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          tabs: const [
-            Tab(text: "Mới"),
-            Tab(text: "Đang sửa"),
-            Tab(text: 'Lịch sử'),
-          ],
+
+        // --- NÂNG CẤP: THÊM Ô TÌM KIẾM VÀO APPBAR ---
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(110), // Tăng chiều cao để chứa cả Search và Tab
+          child: Column(
+            children: [
+              // Ô NHẬP LIỆU TÌM KIẾM
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: "Tìm theo tên hoặc vị trí...",
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ),
+              // THANH TAB GIỮ NGUYÊN
+              TabBar(
+                controller: _tabController,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                indicatorColor: Colors.white,
+                tabs: const [
+                  Tab(text: "Mới"),
+                  Tab(text: "Đang sửa"),
+                  Tab(text: 'Lịch sử'),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
       body: TabBarView(
@@ -110,14 +148,31 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
           );
         }
 
-        final docs = snapshot.data!.docs;
+        // --- NÂNG CẤP: LOGIC LỌC DỮ LIỆU ---
+        final allDocs = snapshot.data!.docs;
+
+        // Lọc danh sách dựa trên từ khóa tìm kiếm
+        final filteredDocs = allDocs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final title = (data['title'] ?? '').toString().toLowerCase();
+          final location = (data['location'] ?? '').toString().toLowerCase();
+
+          // Logic: Nếu ô tìm kiếm trống HOẶC tên chứa từ khóa HOẶC vị trí chứa từ khóa
+          return _searchText.isEmpty || title.contains(_searchText) || location.contains(_searchText);
+        }).toList();
+
+        // Nếu lọc xong mà không còn đơn nào
+        if (filteredDocs.isEmpty) {
+          return const Center(child: Text("Không tìm thấy kết quả phù hợp"));
+        }
 
         return ListView.builder(
           padding: const EdgeInsets.all(10),
-          itemCount: docs.length,
+          itemCount: filteredDocs.length, // Sử dụng danh sách đã lọc (filteredDocs)
           itemBuilder: (context, index) {
-            final data = docs[index].data() as Map<String, dynamic>;
-            final incident = IncidentModel.fromMap(data, docs[index].id);
+            final doc = filteredDocs[index];
+            final data = doc.data() as Map<String, dynamic>;
+            final incident = IncidentModel.fromMap(data, doc.id);
 
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
@@ -127,7 +182,6 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- PHẦN THÔNG TIN (GIỮ NGUYÊN) ---
                     Row(
                       children: [
                         ClipRRect(
@@ -177,14 +231,13 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
                       style: const TextStyle(color: Colors.black87),
                     ),
 
-                    // --- PHẦN NÚT BẤM (MỚI THÊM VÀO) ---
+                    // --- NÚT BẤM ---
                     const SizedBox(height: 10),
                     if (filterStatus == 'Pending')
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            // Chuyển sang Processing
                             _updateStatus(incident.id, 'Processing');
                           },
                           icon: const Icon(Icons.play_arrow),
@@ -201,7 +254,6 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            // Chuyển sang Resolved
                             _updateStatus(incident.id, 'Resolved');
                           },
                           icon: const Icon(Icons.check_circle),
