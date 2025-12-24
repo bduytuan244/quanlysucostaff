@@ -35,7 +35,7 @@ class IncidentModel {
       'reporterId': reporterId,
       'timestamp': timestamp.millisecondsSinceEpoch,
       'resultImageUrl': resultImageUrl,
-      'cagetory': category,
+      'category': category,
     };
   }
   
@@ -50,7 +50,7 @@ class IncidentModel {
       staffId: map['staffId'],
       timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp'] ?? 0),
       resultImageUrl: map['resultImageUrl'],
-      category: map['cagetory'] ?? 'Khác',
+      category: map['category'] ?? 'Khác',
     );
   }
 }
