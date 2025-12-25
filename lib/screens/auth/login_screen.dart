@@ -10,7 +10,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Đổi tên biến cho rõ ràng
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
@@ -27,31 +26,26 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() { _isLoading = true; });
 
     try {
-      // 1. Tìm trong DB: Email này có phải là QUẢN LÝ (manager) không?
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('email', isEqualTo: inputEmail)
-          .where('role', isEqualTo: 'manager') // --- QUAN TRỌNG: Chỉ Manager mới được vào ---
+          .where('role', isEqualTo: 'manager')
           .limit(1)
           .get();
 
       if (snapshot.docs.isNotEmpty) {
-        // --- TÌM THẤY TÀI KHOẢN ---
         var userDoc = snapshot.docs.first;
         Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
 
-        // 2. Check mật khẩu
         String dbPassword = data['password'] ?? '123456';
 
         if (inputPassword == dbPassword) {
-          // Đúng hết -> Vào trang chủ
           _goToHome();
         } else {
           _showError('Sai mật khẩu!');
         }
       } else {
-        // --- KHÔNG TÌM THẤY ---
-        // Có thể là sai Email, hoặc Email đó là của 'technician' chứ không phải 'manager'
+
         _showError('Tài khoản này không có quyền Quản lý!');
       }
     } catch (e) {

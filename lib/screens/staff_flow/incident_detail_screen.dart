@@ -5,12 +5,12 @@ import '../../models/incident_model.dart';
 
 class IncidentDetailScreen extends StatefulWidget {
   final IncidentModel incident;
-  final bool isReadOnly; // Biến cờ hiệu: true = Chỉ xem (Staff), false = Được sửa (User)
+  final bool isReadOnly;
 
   const IncidentDetailScreen({
     super.key,
     required this.incident,
-    this.isReadOnly = false, // Mặc định là User (được bấm nút)
+    this.isReadOnly = false,
   });
 
   @override
@@ -20,33 +20,30 @@ class IncidentDetailScreen extends StatefulWidget {
 class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
   bool _isUpdating = false;
 
-  // --- HÀM MỚI: ZOOM ẢNH TOÀN MÀN HÌNH ---
   void _showFullImage(BuildContext context, String base64String) {
     if (base64String.isEmpty) return;
 
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: Colors.black, // Nền đen cho dễ nhìn
-        insetPadding: EdgeInsets.zero, // Full màn hình
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
         child: Stack(
           alignment: Alignment.topRight,
           children: [
-            // Ảnh có thể zoom, kéo thả
             InteractiveViewer(
               panEnabled: true,
               minScale: 0.5,
-              maxScale: 4.0, // Zoom tối đa 4 lần
+              maxScale: 4.0,
               child: SizedBox(
                 width: double.infinity,
                 height: double.infinity,
                 child: Image.memory(
                   base64Decode(base64String),
-                  fit: BoxFit.contain, // Hiển thị trọn vẹn ảnh
+                  fit: BoxFit.contain,
                 ),
               ),
             ),
-            // Nút đóng
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -65,7 +62,6 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
     );
   }
 
-  // Hàm xử lý khi KTV bấm hoàn thành
   Future<void> _markAsCompleted() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -126,7 +122,6 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Format thời gian an toàn
     String timeString = "";
     try {
       timeString = widget.incident.timestamp.toString().substring(0, 16);
@@ -141,10 +136,8 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Ảnh hiện trường (Có tính năng bấm để Zoom)
             GestureDetector(
               onTap: () {
-                // Gọi hàm zoom ảnh khi bấm vào
                 if (widget.incident.imageUrl.isNotEmpty) {
                   _showFullImage(context, widget.incident.imageUrl);
                 }
@@ -159,7 +152,6 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                         base64Decode(widget.incident.imageUrl),
                         fit: BoxFit.cover, width: double.infinity, height: 250
                     ),
-                    // Icon gợi ý bấm vào để zoom
                     Positioned(
                       right: 10, bottom: 10,
                       child: Container(
@@ -175,7 +167,6 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 2. Tiêu đề và Trạng thái
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -186,7 +177,6 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
             ),
             const SizedBox(height: 10),
 
-            // 3. Thông tin chi tiết
             Card(
               elevation: 2,
               child: Padding(
@@ -206,11 +196,6 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
             ),
             const SizedBox(height: 30),
 
-            // 4. Nút Hoàn thành
-            // LOGIC QUAN TRỌNG:
-            // Chỉ hiện khi:
-            // (1) Trạng thái là Processing
-            // (2) VÀ KHÔNG PHẢI chế độ ReadOnly (tức là User đang xem, không phải Staff)
             if (!widget.isReadOnly && widget.incident.status == 'Processing')
               SizedBox(
                 width: double.infinity,
@@ -225,7 +210,6 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                 ),
               ),
 
-            // Nếu là Staff (ReadOnly) và đang Processing
             if (widget.isReadOnly && widget.incident.status == 'Processing')
               const Center(
                   child: Text(

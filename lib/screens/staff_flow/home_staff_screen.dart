@@ -18,7 +18,7 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
   final TextEditingController _searchController = TextEditingController();
 
   String _searchText = "";
-  DateTime? _selectedDate; // Biến lưu ngày được chọn
+  DateTime? _selectedDate;
 
   @override
   void initState() {
@@ -32,7 +32,6 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
     });
   }
 
-  // Hàm chọn ngày
   Future<void> _pickDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -48,14 +47,12 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
     }
   }
 
-  // Hàm xóa lọc ngày
   void _clearDateFilter() {
     setState(() {
       _selectedDate = null;
     });
   }
 
-  // Hàm cập nhật trạng thái
   Future<void> _updateStatus(String docId, String newStatus) async {
     try {
       await FirebaseFirestore.instance.collection('incidents').doc(docId).update({'status': newStatus});
@@ -77,7 +74,6 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
         actions: [
-          // --- 1. NÚT CHỌN NGÀY ---
           IconButton(
             icon: Icon(_selectedDate == null ? Icons.calendar_month : Icons.event_available),
             color: _selectedDate == null ? Colors.white : Colors.yellowAccent, // Vàng nếu đang lọc
@@ -102,7 +98,7 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
         ],
 
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(_selectedDate != null ? 140 : 110), // Tăng chiều cao nếu đang hiện ngày lọc
+          preferredSize: Size.fromHeight(_selectedDate != null ? 140 : 110),
           child: Column(
             children: [
               Padding(
@@ -120,7 +116,6 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
                 ),
               ),
 
-              // --- 2. HIỂN THỊ NGÀY ĐANG LỌC (NẾU CÓ) ---
               if (_selectedDate != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8.0),
@@ -177,7 +172,6 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
       stream: FirebaseFirestore.instance
           .collection('incidents')
           .where('status', isEqualTo: filterStatus)
-      // .orderBy('timestamp', descending: true) // Tạm bỏ order trên server để client tự lọc cho dễ
           .snapshots(),
       builder: (context, snapshot){
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -190,7 +184,6 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
 
         final allDocs = snapshot.data!.docs;
 
-        // --- 3. LOGIC LỌC DỮ LIỆU (SEARCH + DATE) ---
         final filteredDocs = allDocs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
 
@@ -200,7 +193,6 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
 
           bool matchesDate = true;
           if (_selectedDate != null) {
-            // --- XỬ LÝ NGÀY THÁNG AN TOÀN ---
             DateTime? dt;
             final dynamic rawTs = data['timestamp'];
 
@@ -222,12 +214,10 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
           return matchesSearch && matchesDate;
         }).toList();
 
-        // Sắp xếp giảm dần theo thời gian (Mới nhất lên đầu) - Client side sorting
         filteredDocs.sort((a, b) {
           final d1 = a.data() as Map<String, dynamic>;
           final d2 = b.data() as Map<String, dynamic>;
 
-          // Hàm phụ để lấy milliseconds từ mọi loại dữ liệu
           int getMillis(dynamic raw) {
             if (raw is Timestamp) return raw.millisecondsSinceEpoch;
             if (raw is int) return raw;
@@ -237,7 +227,7 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
           int t1 = getMillis(d1['timestamp']);
           int t2 = getMillis(d2['timestamp']);
 
-          return t2.compareTo(t1); // So sánh số nguyên (milliseconds)
+          return t2.compareTo(t1);
         });
         if (filteredDocs.isEmpty) {
           return const Center(child: Text("Không tìm thấy đơn nào phù hợp"));
@@ -275,7 +265,6 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
                               Text(incident.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                               Text("📍 ${incident.location}", style: const TextStyle(color: Colors.grey)),
                               const SizedBox(height: 4),
-                              // Hiển thị ngày giờ
                               Text(DateFormat('HH:mm dd/MM/yyyy').format(incident.timestamp), style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
                             ],
                           ),

@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/auth/login_screen.dart';
-import 'screens/staff_flow/home_staff_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    // --- THAY ĐỔI QUAN TRỌNG TẠI ĐÂY ---
     await Firebase.initializeApp(
       options: const FirebaseOptions(
-        // Bạn mở file google-services.json ra để copy 4 dòng này vào nhé
+
         apiKey: "AIzaSyCOJU4k1mRshEPHjjP3IvhG84BEEf-QGfo",
         appId: "1:110963805676:android:8d9aa542379d4d30a784c9",
         messagingSenderId: "110963805676",
         projectId: "maintenanceapp-3e232",
       ),
     );
-    // ------------------------------------
   } catch (e) {
     print("Lỗi khởi tạo Firebase (hoặc đã khởi tạo rồi): $e");
   }

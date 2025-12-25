@@ -3,12 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import '../../models/incident_model.dart';
-import '../staff_flow/incident_detail_screen.dart'; // Tận dụng màn hình chi tiết bên User (hoặc tạo riêng nếu muốn)
+import '../staff_flow/incident_detail_screen.dart';
 
 class StatisticDetailScreen extends StatelessWidget {
   final String title;
-  final String filterType; // 'today', 'week', 'month', 'quarter'
-  final List<QueryDocumentSnapshot> allDocs; // Nhận danh sách gốc từ màn hình trước
+  final String filterType;
+  final List<QueryDocumentSnapshot> allDocs;
 
   const StatisticDetailScreen({
     super.key,
@@ -19,7 +19,6 @@ class StatisticDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. TÍNH TOÁN LẠI MỐC THỜI GIAN ĐỂ LỌC
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day);
     final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
@@ -27,11 +26,9 @@ class StatisticDetailScreen extends StatelessWidget {
     final int currentQuarter = ((now.month - 1) / 3).floor() + 1;
     final startOfQuarter = DateTime(now.year, (currentQuarter - 1) * 3 + 1, 1);
 
-    // 2. LỌC DANH SÁCH
     final filteredDocs = allDocs.where((doc) {
       final data = doc.data() as Map<String, dynamic>;
 
-      // Xử lý an toàn cho Timestamp/Int
       DateTime? date;
       final dynamic rawTs = data['timestamp'];
       if (rawTs is Timestamp) date = rawTs.toDate();
@@ -39,7 +36,6 @@ class StatisticDetailScreen extends StatelessWidget {
 
       if (date == null) return false;
 
-      // Logic lọc tương ứng
       switch (filterType) {
         case 'today': return date.isAfter(startOfDay);
         case 'week': return date.isAfter(startOfWeek);
@@ -49,11 +45,9 @@ class StatisticDetailScreen extends StatelessWidget {
       }
     }).toList();
 
-    // Sắp xếp mới nhất lên đầu
     filteredDocs.sort((a, b) {
       final d1 = a.data() as Map<String, dynamic>;
       final d2 = b.data() as Map<String, dynamic>;
-      // Logic lấy time an toàn
       int getMillis(dynamic raw) => (raw is Timestamp) ? raw.millisecondsSinceEpoch : (raw is int ? raw : 0);
       return getMillis(d2['timestamp']).compareTo(getMillis(d1['timestamp']));
     });
@@ -100,12 +94,11 @@ class StatisticDetailScreen extends StatelessWidget {
                 ],
               ),
               onTap: () {
-                // Khi Staff bấm vào xem chi tiết
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => IncidentDetailScreen(
                     incident: incident,
-                    isReadOnly: true, // <--- TRUYỀN TRUE ĐỂ ẨN NÚT
+                    isReadOnly: true,
                   )),
                 );
               },
