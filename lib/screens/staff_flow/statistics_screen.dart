@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-
+import 'statistic_detail_screen.dart';
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
 
@@ -50,16 +50,23 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
     for (var doc in docs) {
       final data = doc.data() as Map<String, dynamic>;
-      final Timestamp? ts = data['timestamp'];
 
-      if (ts != null) {
-        final date = ts.toDate();
+      // --- ĐOẠN SỬA LỖI QUAN TRỌNG ---
+      DateTime? date;
+      final dynamic rawTs = data['timestamp']; // Lấy dữ liệu thô (dynamic)
 
-        // So sánh thời gian
-        if (date.isAfter(startOfDay)) d++; // Hôm nay
-        if (date.isAfter(startOfWeekClean)) w++; // Tuần này
-        if (date.isAfter(startOfMonth)) m++; // Tháng này
-        if (date.isAfter(startOfQuarter)) q++; // Quý này
+      if (rawTs is Timestamp) {
+        date = rawTs.toDate(); // Nếu là Timestamp thì đổi sang Date
+      } else if (rawTs is int) {
+        date = DateTime.fromMillisecondsSinceEpoch(rawTs); // Nếu là số Int thì đổi từ mili-giây
+      }
+      // -------------------------------
+
+      if (date != null) {
+        if (date.isAfter(startOfDay)) d++;
+        if (date.isAfter(startOfWeekClean)) w++;
+        if (date.isAfter(startOfMonth)) m++;
+        if (date.isAfter(startOfQuarter)) q++;
       }
     }
 
@@ -134,12 +141,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   mainAxisSpacing: 10,
                   shrinkWrap: true, // Quan trọng để nằm trong ScrollView
                   physics: const NeverScrollableScrollPhysics(),
-                  childAspectRatio: 1.5, // Tỷ lệ chiều rộng/cao
+                  childAspectRatio: 1.2, // Tỷ lệ chiều rộng/cao
                   children: [
-                    _buildStatCard("Hôm nay", _todayCount, Colors.orange, Icons.today),
-                    _buildStatCard("Tuần này", _weekCount, Colors.blue, Icons.calendar_view_week),
-                    _buildStatCard("Tháng này", _monthCount, Colors.green, Icons.calendar_month),
-                    _buildStatCard("Quý này", _quarterCount, Colors.purple, Icons.pie_chart),
+                    _buildStatCard("Hôm nay", _todayCount, Colors.orange, Icons.today, "today", docs),
+                    _buildStatCard("Tuần này", _weekCount, Colors.blue, Icons.calendar_view_week, "week", docs),
+                    _buildStatCard("Tháng này", _monthCount, Colors.green, Icons.calendar_month, "month", docs),
+                    _buildStatCard("Quý này", _quarterCount, Colors.purple, Icons.pie_chart, "quarter", docs),
                   ],
                 ),
 
@@ -186,27 +193,53 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   // Widget vẽ thẻ thống kê nhỏ
-  Widget _buildStatCard(String title, int count, Color color, IconData icon) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 30),
-          const SizedBox(height: 8),
-          Text(title, style: TextStyle(color: Colors.grey[700], fontSize: 14)),
-          const SizedBox(height: 4),
-          Text(
-              "$count",
-              style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.bold)
+  // Cập nhật tham số nhận vào
+  Widget _buildStatCard(
+      String title,
+      int count,
+      Color color,
+      IconData icon,
+      String filterType, // Mới: Loại lọc
+      List<QueryDocumentSnapshot> docs // Mới: Danh sách dữ liệu
+      ) {
+    return GestureDetector( // Bọc bằng GestureDetector để bắt sự kiện bấm
+      onTap: () {
+        // Chuyển sang màn hình chi tiết
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StatisticDetailScreen(
+              title: "Chi tiết: $title",
+              filterType: filterType,
+              allDocs: docs, // Truyền toàn bộ dữ liệu sang để bên kia tự lọc
+            ),
           ),
-          const Text("đơn", style: TextStyle(fontSize: 12, color: Colors.grey)),
-        ],
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 4),
+            Text(title, style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+            const SizedBox(height: 2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                  "$count",
+                  style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.bold)
+              ),
+            ),
+            const Text("đơn", style: TextStyle(fontSize: 11, color: Colors.grey)),
+          ],
+        ),
       ),
     );
   }

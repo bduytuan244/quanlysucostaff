@@ -1,0 +1,118 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'dart:convert';
+import '../../models/incident_model.dart';
+import '../staff_flow/incident_detail_screen.dart'; // Tận dụng màn hình chi tiết bên User (hoặc tạo riêng nếu muốn)
+
+class StatisticDetailScreen extends StatelessWidget {
+  final String title;
+  final String filterType; // 'today', 'week', 'month', 'quarter'
+  final List<QueryDocumentSnapshot> allDocs; // Nhận danh sách gốc từ màn hình trước
+
+  const StatisticDetailScreen({
+    super.key,
+    required this.title,
+    required this.filterType,
+    required this.allDocs,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // 1. TÍNH TOÁN LẠI MỐC THỜI GIAN ĐỂ LỌC
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    final int currentQuarter = ((now.month - 1) / 3).floor() + 1;
+    final startOfQuarter = DateTime(now.year, (currentQuarter - 1) * 3 + 1, 1);
+
+    // 2. LỌC DANH SÁCH
+    final filteredDocs = allDocs.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+
+      // Xử lý an toàn cho Timestamp/Int
+      DateTime? date;
+      final dynamic rawTs = data['timestamp'];
+      if (rawTs is Timestamp) date = rawTs.toDate();
+      else if (rawTs is int) date = DateTime.fromMillisecondsSinceEpoch(rawTs);
+
+      if (date == null) return false;
+
+      // Logic lọc tương ứng
+      switch (filterType) {
+        case 'today': return date.isAfter(startOfDay);
+        case 'week': return date.isAfter(startOfWeek);
+        case 'month': return date.isAfter(startOfMonth);
+        case 'quarter': return date.isAfter(startOfQuarter);
+        default: return false;
+      }
+    }).toList();
+
+    // Sắp xếp mới nhất lên đầu
+    filteredDocs.sort((a, b) {
+      final d1 = a.data() as Map<String, dynamic>;
+      final d2 = b.data() as Map<String, dynamic>;
+      // Logic lấy time an toàn
+      int getMillis(dynamic raw) => (raw is Timestamp) ? raw.millisecondsSinceEpoch : (raw is int ? raw : 0);
+      return getMillis(d2['timestamp']).compareTo(getMillis(d1['timestamp']));
+    });
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
+      ),
+      body: filteredDocs.isEmpty
+          ? const Center(child: Text("Không có đơn nào trong khoảng thời gian này"))
+          : ListView.builder(
+        padding: const EdgeInsets.all(10),
+        itemCount: filteredDocs.length,
+        itemBuilder: (context, index) {
+          final doc = filteredDocs[index];
+          final data = doc.data() as Map<String, dynamic>;
+          final incident = IncidentModel.fromMap(data, doc.id);
+
+          return Card(
+            elevation: 2,
+            margin: const EdgeInsets.only(bottom: 10),
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(10),
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: incident.imageUrl.isNotEmpty && !incident.imageUrl.startsWith('http')
+                    ? Image.memory(base64Decode(incident.imageUrl), width: 60, height: 60, fit: BoxFit.cover, errorBuilder: (_,__,___)=>const Icon(Icons.error))
+                    : Container(width: 60, height: 60, color: Colors.grey[300], child: const Icon(Icons.image)),
+              ),
+              title: Text(incident.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("📍 ${incident.location}"),
+                  Text(DateFormat('HH:mm dd/MM/yyyy').format(incident.timestamp), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(4)),
+                    child: Text(incident.status, style: const TextStyle(fontSize: 10, color: Colors.blue)),
+                  )
+                ],
+              ),
+              onTap: () {
+                // Khi Staff bấm vào xem chi tiết
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => IncidentDetailScreen(
+                    incident: incident,
+                    isReadOnly: true, // <--- TRUYỀN TRUE ĐỂ ẨN NÚT
+                  )),
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+}

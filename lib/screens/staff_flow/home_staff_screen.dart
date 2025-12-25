@@ -194,19 +194,23 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
         final filteredDocs = allDocs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
 
-          // Lọc theo từ khóa
           final title = (data['title'] ?? '').toString().toLowerCase();
           final location = (data['location'] ?? '').toString().toLowerCase();
           final matchesSearch = _searchText.isEmpty || title.contains(_searchText) || location.contains(_searchText);
 
-          // Lọc theo ngày (QUAN TRỌNG)
           bool matchesDate = true;
           if (_selectedDate != null) {
-            // Lấy timestamp từ Firebase chuyển thành DateTime
-            Timestamp? ts = data['timestamp'];
-            if (ts != null) {
-              DateTime dt = ts.toDate();
-              // So sánh ngày/tháng/năm (bỏ qua giờ phút)
+            // --- XỬ LÝ NGÀY THÁNG AN TOÀN ---
+            DateTime? dt;
+            final dynamic rawTs = data['timestamp'];
+
+            if (rawTs is Timestamp) {
+              dt = rawTs.toDate();
+            } else if (rawTs is int) {
+              dt = DateTime.fromMillisecondsSinceEpoch(rawTs);
+            }
+
+            if (dt != null) {
               matchesDate = dt.year == _selectedDate!.year &&
                   dt.month == _selectedDate!.month &&
                   dt.day == _selectedDate!.day;
@@ -220,11 +224,21 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
 
         // Sắp xếp giảm dần theo thời gian (Mới nhất lên đầu) - Client side sorting
         filteredDocs.sort((a, b) {
-          Timestamp t1 = a['timestamp'];
-          Timestamp t2 = b['timestamp'];
-          return t2.compareTo(t1);
-        });
+          final d1 = a.data() as Map<String, dynamic>;
+          final d2 = b.data() as Map<String, dynamic>;
 
+          // Hàm phụ để lấy milliseconds từ mọi loại dữ liệu
+          int getMillis(dynamic raw) {
+            if (raw is Timestamp) return raw.millisecondsSinceEpoch;
+            if (raw is int) return raw;
+            return 0;
+          }
+
+          int t1 = getMillis(d1['timestamp']);
+          int t2 = getMillis(d2['timestamp']);
+
+          return t2.compareTo(t1); // So sánh số nguyên (milliseconds)
+        });
         if (filteredDocs.isEmpty) {
           return const Center(child: Text("Không tìm thấy đơn nào phù hợp"));
         }
