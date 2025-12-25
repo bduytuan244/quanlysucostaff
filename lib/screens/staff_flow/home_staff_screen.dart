@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart'; // Import để format ngày tháng
 import 'dart:convert';
 import '../../models/incident_model.dart';
 import 'manage_tech_screen.dart';
@@ -15,14 +16,15 @@ class HomeStaffScreen extends StatefulWidget {
 class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+
   String _searchText = "";
+  DateTime? _selectedDate; // Biến lưu ngày được chọn
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
 
-    // Lắng nghe thay đổi khi gõ phím để cập nhật biến _searchText
     _searchController.addListener(() {
       setState(() {
         _searchText = _searchController.text.toLowerCase();
@@ -30,21 +32,40 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
     });
   }
 
-  // Hàm cập nhật trạng thái đơn hàng
+  // Hàm chọn ngày
+  Future<void> _pickDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      helpText: 'CHỌN NGÀY CẦN XEM',
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
+  // Hàm xóa lọc ngày
+  void _clearDateFilter() {
+    setState(() {
+      _selectedDate = null;
+    });
+  }
+
+  // Hàm cập nhật trạng thái
   Future<void> _updateStatus(String docId, String newStatus) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('incidents')
-          .doc(docId)
-          .update({'status': newStatus});
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Đã cập nhật: $newStatus")),
-      );
+      await FirebaseFirestore.instance.collection('incidents').doc(docId).update({'status': newStatus});
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Đã cập nhật: $newStatus")));
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Lỗi: $e")),
-      );
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi: $e")));
+      }
     }
   }
 
@@ -56,14 +77,19 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
         actions: [
+          // --- 1. NÚT CHỌN NGÀY ---
+          IconButton(
+            icon: Icon(_selectedDate == null ? Icons.calendar_month : Icons.event_available),
+            color: _selectedDate == null ? Colors.white : Colors.yellowAccent, // Vàng nếu đang lọc
+            tooltip: "Lọc theo ngày",
+            onPressed: _pickDate,
+          ),
+
           IconButton(
             icon: const Icon(Icons.bar_chart),
             tooltip: "Xem thống kê",
             onPressed: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const StatisticsScreen())
-              );
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const StatisticsScreen()));
             },
           ),
           IconButton(
@@ -75,30 +101,51 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
           ),
         ],
 
-        // --- NÂNG CẤP: THÊM Ô TÌM KIẾM VÀO APPBAR ---
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(110), // Tăng chiều cao để chứa cả Search và Tab
+          preferredSize: Size.fromHeight(_selectedDate != null ? 140 : 110), // Tăng chiều cao nếu đang hiện ngày lọc
           child: Column(
             children: [
-              // Ô NHẬP LIỆU TÌM KIẾM
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: "Tìm theo tên hoặc vị trí...",
+                    hintText: "Tìm tên thiết bị, vị trí...",
                     prefixIcon: const Icon(Icons.search),
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      borderSide: BorderSide.none,
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
                   ),
                 ),
               ),
-              // THANH TAB GIỮ NGUYÊN
+
+              // --- 2. HIỂN THỊ NGÀY ĐANG LỌC (NẾU CÓ) ---
+              if (_selectedDate != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.teal.shade700, borderRadius: BorderRadius.circular(20)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.filter_list, color: Colors.white, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Đang lọc ngày: ${DateFormat('dd/MM/yyyy').format(_selectedDate!)}",
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: _clearDateFilter,
+                          child: const Icon(Icons.close, color: Colors.yellowAccent, size: 20),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+
               TabBar(
                 controller: _tabController,
                 labelColor: Colors.white,
@@ -130,6 +177,7 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
       stream: FirebaseFirestore.instance
           .collection('incidents')
           .where('status', isEqualTo: filterStatus)
+      // .orderBy('timestamp', descending: true) // Tạm bỏ order trên server để client tự lọc cho dễ
           .snapshots(),
       builder: (context, snapshot){
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -137,38 +185,53 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.inbox, size: 50, color: Colors.grey),
-                Text("Không có đơn nào ở mục $filterStatus"),
-              ],
-            ),
-          );
+          return _emptyView(filterStatus);
         }
 
-        // --- NÂNG CẤP: LOGIC LỌC DỮ LIỆU ---
         final allDocs = snapshot.data!.docs;
 
-        // Lọc danh sách dựa trên từ khóa tìm kiếm
+        // --- 3. LOGIC LỌC DỮ LIỆU (SEARCH + DATE) ---
         final filteredDocs = allDocs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
+
+          // Lọc theo từ khóa
           final title = (data['title'] ?? '').toString().toLowerCase();
           final location = (data['location'] ?? '').toString().toLowerCase();
+          final matchesSearch = _searchText.isEmpty || title.contains(_searchText) || location.contains(_searchText);
 
-          // Logic: Nếu ô tìm kiếm trống HOẶC tên chứa từ khóa HOẶC vị trí chứa từ khóa
-          return _searchText.isEmpty || title.contains(_searchText) || location.contains(_searchText);
+          // Lọc theo ngày (QUAN TRỌNG)
+          bool matchesDate = true;
+          if (_selectedDate != null) {
+            // Lấy timestamp từ Firebase chuyển thành DateTime
+            Timestamp? ts = data['timestamp'];
+            if (ts != null) {
+              DateTime dt = ts.toDate();
+              // So sánh ngày/tháng/năm (bỏ qua giờ phút)
+              matchesDate = dt.year == _selectedDate!.year &&
+                  dt.month == _selectedDate!.month &&
+                  dt.day == _selectedDate!.day;
+            } else {
+              matchesDate = false;
+            }
+          }
+
+          return matchesSearch && matchesDate;
         }).toList();
 
-        // Nếu lọc xong mà không còn đơn nào
+        // Sắp xếp giảm dần theo thời gian (Mới nhất lên đầu) - Client side sorting
+        filteredDocs.sort((a, b) {
+          Timestamp t1 = a['timestamp'];
+          Timestamp t2 = b['timestamp'];
+          return t2.compareTo(t1);
+        });
+
         if (filteredDocs.isEmpty) {
-          return const Center(child: Text("Không tìm thấy kết quả phù hợp"));
+          return const Center(child: Text("Không tìm thấy đơn nào phù hợp"));
         }
 
         return ListView.builder(
           padding: const EdgeInsets.all(10),
-          itemCount: filteredDocs.length, // Sử dụng danh sách đã lọc (filteredDocs)
+          itemCount: filteredDocs.length,
           itemBuilder: (context, index) {
             final doc = filteredDocs[index];
             final data = doc.data() as Map<String, dynamic>;
@@ -187,11 +250,7 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: incident.imageUrl.isNotEmpty && !incident.imageUrl.startsWith('http')
-                              ? Image.memory(
-                            base64Decode(incident.imageUrl),
-                            width: 70, height: 70, fit: BoxFit.cover,
-                            errorBuilder: (_,__,___) => Container(width: 70, height: 70, color: Colors.grey, child: const Icon(Icons.error)),
-                          )
+                              ? Image.memory(base64Decode(incident.imageUrl), width: 70, height: 70, fit: BoxFit.cover, errorBuilder: (_,__,___) => Container(width: 70, height: 70, color: Colors.grey))
                               : Container(width: 70, height: 70, color: Colors.grey[300], child: const Icon(Icons.image)),
                         ),
                         const SizedBox(width: 12),
@@ -199,71 +258,39 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                incident.title,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                              const SizedBox(height: 4),
+                              Text(incident.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                               Text("📍 ${incident.location}", style: const TextStyle(color: Colors.grey)),
                               const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                    color: Colors.blue[50],
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: Colors.blue.shade200)
-                                ),
-                                child: Text(
-                                  incident.category,
-                                  style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
-                                ),
-                              ),
+                              // Hiển thị ngày giờ
+                              Text(DateFormat('HH:mm dd/MM/yyyy').format(incident.timestamp), style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
                             ],
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      "Mô tả: ${incident.description}",
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.black87),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.blue.shade200)),
+                      child: Text(incident.category, style: TextStyle(fontSize: 12, color: Colors.blue.shade800)),
                     ),
+                    const SizedBox(height: 4),
+                    Text("Mô tả: ${incident.description}", maxLines: 2, overflow: TextOverflow.ellipsis),
 
-                    // --- NÚT BẤM ---
                     const SizedBox(height: 10),
                     if (filterStatus == 'Pending')
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            _updateStatus(incident.id, 'Processing');
-                          },
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text("TIẾP NHẬN XỬ LÝ"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
+                      SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                        onPressed: () => _updateStatus(incident.id, 'Processing'),
+                        icon: const Icon(Icons.play_arrow), label: const Text("TIẾP NHẬN"),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+                      )),
 
                     if (filterStatus == 'Processing')
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            _updateStatus(incident.id, 'Resolved');
-                          },
-                          icon: const Icon(Icons.check_circle),
-                          label: const Text("HOÀN THÀNH"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
+                      SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                        onPressed: () => _updateStatus(incident.id, 'Resolved'),
+                        icon: const Icon(Icons.check_circle), label: const Text("HOÀN THÀNH (ADMIN)"),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                      )),
                   ],
                 ),
               ),
@@ -271,6 +298,18 @@ class _HomeStaffScreenState extends State<HomeStaffScreen> with SingleTickerProv
           },
         );
       },
+    );
+  }
+
+  Widget _emptyView(String status) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.inbox, size: 50, color: Colors.grey),
+          Text("Không có đơn nào ở mục $status"),
+        ],
+      ),
     );
   }
 }
