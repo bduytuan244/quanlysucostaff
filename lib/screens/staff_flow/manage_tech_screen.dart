@@ -119,7 +119,7 @@ class _ManageTechScreenState extends State<ManageTechScreen> {
 
                   // --- PHẦN QUAN TRỌNG: TRAILING CHỨA 2 NÚT ---
                   trailing: SizedBox(
-                    width: 96, // Cần đặt chiều rộng cố định để Row không chiếm hết chỗ
+                    width: 120, // Cần đặt chiều rộng cố định để Row không chiếm hết chỗ
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
