@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import '../../models/incident_model.dart';
-import '../staff_flow/incident_detail_screen.dart';
+import 'staff_incident_view.dart';
 
 class StatisticDetailScreen extends StatelessWidget {
   final String title;
@@ -88,18 +88,29 @@ class StatisticDetailScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(4)),
-                    child: Text(incident.status, style: const TextStyle(fontSize: 10, color: Colors.blue)),
+                    decoration: BoxDecoration(
+                        color: incident.status == 'Resolved' ? Colors.green[50] : Colors.blue[50],
+                        borderRadius: BorderRadius.circular(4)
+                    ),
+                    child: Text(
+                        incident.status == 'Resolved' ? 'Đã xong' : (incident.status == 'Processing' ? 'Đang sửa' : 'Mới'),
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: incident.status == 'Resolved' ? Colors.green : Colors.blue
+                        )
+                    ),
                   )
                 ],
               ),
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => IncidentDetailScreen(
-                    incident: incident,
-                    isReadOnly: true,
-                  )),
+                  MaterialPageRoute(
+                    builder: (context) => StaffIncidentView(
+                      incidentId: incident.id,
+                      isEditable: false,
+                    ),
+                  ),
                 );
               },
             ),
